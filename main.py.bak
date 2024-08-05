@@ -1,0 +1,115 @@
+import cv2
+import numpy as np
+import platform
+
+from color_method import get_green_red_image, get_black_image
+from cv2_key_event import cv2_key_event
+from save_pics import save_jpgs
+from c_contour import VArea
+
+TEST_WITH_JPG = True
+area_list = []
+
+
+if __name__ == '__main__':
+    if TEST_WITH_JPG is True:
+        pass
+    else:
+        if 'aarch64' in platform.machine(): # RPI
+            cap = cv2.VideoCapture(0)
+        else:   # x86
+            cap = cv2.VideoCapture(2)
+
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+
+    while True:
+        if TEST_WITH_JPG is True:
+            image = cv2.imread("ori_frame_20240731_232718.jpg")
+        else:
+            ret, frame = cap.read()
+            if ret is not True:
+                print("no frame")
+                break
+
+        frame = image[110:710 , 275:960]
+
+        cv2.imshow("Ori Frame", frame)
+
+        ''' 檢測紅色綠色區塊 '''
+        red_green_image = get_green_red_image(frame)
+        cv2.imshow("Red Green Frame", red_green_image)
+        ''' 找出紅色綠色contour'''
+        frame_sample = red_green_image.copy()
+        ''' 先將圖片轉灰階 '''
+        gray_red_green_image = cv2.cvtColor(frame_sample, cv2.COLOR_BGR2GRAY)
+        cv2.imshow("gray_red_green_image", gray_red_green_image)
+        ''' 灰階處理二值化 '''
+        ret, gray_red_green_image = cv2.threshold(gray_red_green_image, 40, 255, cv2.THRESH_BINARY)
+        gray_red_green_image = cv2.GaussianBlur(gray_red_green_image, (7, 7), 0)
+
+        gray_red_green_image = cv2.Canny(gray_red_green_image, 20, 160)
+        cv2.imshow("output", gray_red_green_image)
+
+        ''' 找尋輪廓 '''
+        red_green_cnts, hierarchy = cv2.findContours(gray_red_green_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+        # red_green_cnts, hierarchy = cv2.findContours(gray_red_green_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+        new_contours = []
+        for cnt in red_green_cnts:
+            area = cv2.contourArea(cnt)
+            if area > 5:
+                new_contours.append(cnt)
+
+        contours = new_contours
+        print("len(contours): ", len(contours))
+        red_green_contour_image = frame.copy()
+
+        ''' contour 建立類別 '''
+        '''v_id = 0
+        for c in red_green_cnts:
+            varea = VArea(c, v_id)
+            v_id += 1
+            area_list.append(varea)
+        print("len(red_green_cnts): ", len(red_green_cnts))
+        print("v_id: ", v_id)
+        for area in area_list:
+            cv2.drawContours(red_green_contour_image, area.cnt, -1, (0, 255, 0), 2)'''
+        # print("(red_green_cnts): ", (red_green_cnts))
+        for c in contours:
+            cv2.drawContours(red_green_contour_image, c, -1, (0, 255, 0), 2)
+
+        # cv2.drawContours(red_green_contour_image, contours, -1, (0, 255, 0), 1)
+
+        cv2.imshow("red_green_contour_image", red_green_contour_image)
+        ''' 檢測黑色區塊 '''
+        # black_image = get_black_image(frame)
+        # cv2.imshow("black Frame", black_image)
+
+        '''gray = cv2.cvtColor(red_green_image, cv2.COLOR_BGR2GRAY)
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 45, param1=45, param2=30, minRadius=10, maxRadius=30)
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            print("len(circles[0]):", len(circles[0]))
+
+            arr1 = np.zeros([0, 2], dtype=int)
+            print("circles:", circles)
+            for i in circles[0, :]:
+                arr1 = np.append(arr1, (i[0], i[1]))
+                cv2.circle(frame, (i[0], i[1]), i[2], (255, 0, 0), 2)
+
+
+        cv2.line(frame, (626, 316), (655, 587), (255, 0, 0), 5)
+        cv2.imshow("Ori Frame", frame)'''
+
+        ret = cv2_key_event()
+        if ret == -1:
+            print("out")
+            break
+        else:
+            # print("ret:", ret)
+            if ret == 99:
+                save_jpgs(frame, "ori_frame_")
+
+    cv2.destroyAllWindows()
