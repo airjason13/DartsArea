@@ -6,7 +6,7 @@ from color_method import get_green_red_image, get_black_image, red_hsv, green_hs
 from cv2_key_event import cv2_key_event
 from save_pics import save_jpgs
 from c_contour import VArea
-from v_math import get_angle_with_three_points, dart_points, get_angle_with_two_lines
+from v_math import get_angle_with_three_points, dart_points, get_angle_with_two_lines, get_distance
 from global_def import log
 TEST_WITH_JPG = True
 
@@ -24,7 +24,7 @@ def get_white_area_list(src_img):
     kernel_temp = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     white_image_binary = cv2.erode(white_image_binary, kernel_temp)
     white_image_binary = cv2.dilate(white_image_binary, kernel_temp)
-    # cv2.imshow("white_image_binary erode", white_image_binary)
+    cv2.imshow("white_image_binary erode", white_image_binary)
 
     ''' 找尋輪廓 '''
     white_cnts, hierarchy = cv2.findContours(white_image_binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -80,7 +80,7 @@ def get_black_area_list(src_img):
     black_image_gray = cv2.erode(black_image_gray, kernel_temp)
     black_image_gray = cv2.dilate(black_image_gray, kernel_temp)
 
-    # cv2.imshow("black image output", black_image_gray)
+    cv2.imshow("black image output", black_image_gray)
 
     ''' 找尋輪廓 '''
     black_cnts, hierarchy = cv2.findContours(black_image_gray, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -98,11 +98,11 @@ def get_black_area_list(src_img):
 
     ''' contour 建立類別 '''
     v_id = 0
-    for c in contours:
-        M = cv2.moments(c)
+    for contour in contours:
+        M = cv2.moments(contour)
         center_x = int(M["m10"] / M["m00"])
         center_y = int(M["m01"] / M["m00"])
-        varea = VArea(c, v_id, center_x, center_y)
+        varea = VArea(contour, v_id, center_x, center_y)
         v_id += 1
         area_list.append(varea)
     # print("len(contours): ", len(contours))
@@ -147,7 +147,7 @@ def get_red_green_area(src_img):
     new_contours = []
     for cnt in red_green_cnts:
         area = cv2.contourArea(cnt)
-        if area > 5:
+        if area > 250:
             new_contours.append(cnt)
 
     contours = new_contours
@@ -168,6 +168,27 @@ def get_red_green_area(src_img):
     return area_list
 
 
+def get_double_area_list(double_triple_area_list: []):
+    double_area_list = []
+    tmp_double_area_list = double_triple_area_list.copy()
+    for area in double_triple_area_list:
+        for tmp_area in tmp_double_area_list:
+            if tmp_area.id == area.id:
+                log.debug("id matched")
+            else:
+                if 0 <= abs(area.angle - tmp_area.angle) <= 1:
+                    log.debug("area.id: %d", area.id)
+                    log.debug("tmp_area.id: %d", tmp_area.id)
+                    log.debug("area.angle: %d", area.angle)
+                    log.debug("tmp_area.angle: %d", tmp_area.angle)
+                    if area.dist < tmp_area.dist:
+                        double_area_list.append(area)
+
+    log.debug("len(double_area_list) : %d", len(double_area_list))
+    for double_area in double_area_list:
+        log.debug("double_area.id: %d", double_area.id)
+
+
 if __name__ == '__main__':
     log.debug("Start ")
     double_triple_area_list = []
@@ -184,24 +205,34 @@ if __name__ == '__main__':
 
     while True:
         if TEST_WITH_JPG is True:
-            image = cv2.imread("ori_frame_20240731_232718_b.jpg")
+            image = cv2.imread("ori_frame_20240810_101810.jpg")
         else:
-            ret, frame = cap.read()
+            ret, image = cap.read()
             if ret is not True:
                 print("no frame")
                 break
 
-        frame = image[110:710 , 275:960]
+        cv2.imshow("Ori Frame", image)
 
-        cv2.imshow("Ori Frame", frame)
+        ret = cv2_key_event()
+        if ret == -1:
+            print("out")
+            break
+        else:
+            # print("ret:", ret)
+            if ret == 99:
+                save_jpgs(image, "ori_frame_")
+
+        frame = image[50:715, 275:1025]
+
         double_triple_image = frame.copy()
         double_triple_area_list = get_red_green_area(double_triple_image)
         for area in double_triple_area_list:
             cv2.drawContours(double_triple_image, area.cnt, -1, (0, 255, 0), 2)
             cv2.putText(double_triple_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y), cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(double_triple_image, str(area.area_size), (area.center_x, area.center_y + 20), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            # cv2.putText(double_triple_image, str(area.area_size), (area.center_x, area.center_y + 20), cv2.FONT_HERSHEY_SIMPLEX,
+            #             0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
         cv2.imshow("red_green_contour_image", double_triple_image)
 
@@ -211,8 +242,8 @@ if __name__ == '__main__':
             cv2.drawContours(black_area_image, area.cnt, -1, (0, 255, 0), 2)
             cv2.putText(black_area_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y), cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 255, 255), 1, cv2.LINE_AA)
-            # cv2.putText(black_area_image, str(area.area_size), (area.center_x, area.center_y + 20), cv2.FONT_HERSHEY_SIMPLEX,
-            #            0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            # cv2.putText(black_area_image, str(area.area_size), (area.center_x, area.center_y + 20),
+            # cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
         cv2.imshow("black_contour_image", black_area_image)
 
@@ -222,16 +253,15 @@ if __name__ == '__main__':
             cv2.drawContours(white_area_image, area.cnt, -1, (0, 255, 0), 2)
             cv2.putText(white_area_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y), cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 255, 255), 1, cv2.LINE_AA)
-            # cv2.putText(white_area_image, str(area.area_size), (area.center_x, area.center_y + 20), cv2.FONT_HERSHEY_SIMPLEX,
-            #             0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            # cv2.putText(white_area_image, str(area.area_size), (area.center_x, area.center_y + 20),
+            # cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
         cv2.imshow("white_contour_image", white_area_image)
-
 
         ''' get blue circle point for calculate angle '''
         blue_src_img = frame.copy()
         blue_image = get_blue_image(blue_src_img)
-        cv2.imshow("Blue Frame", blue_image)
+        # cv2.imshow("Blue Frame", blue_image)
 
         gray_blue_image = cv2.cvtColor(blue_image, cv2.COLOR_BGR2GRAY)
         ret, gray_blue_image = cv2.threshold(gray_blue_image, 20, 255, cv2.THRESH_BINARY)
@@ -240,32 +270,32 @@ if __name__ == '__main__':
         kernel_temp = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         gray_blue_image = cv2.erode(gray_blue_image, kernel_temp)
         gray_blue_image = cv2.dilate(gray_blue_image, kernel_temp)
-        cv2.imshow("Blue Gray Frame", gray_blue_image)
+        # cv2.imshow("Blue Gray Frame", gray_blue_image)
         gray_blue_contour, hierarchy = cv2.findContours(gray_blue_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-        print("len(contours): ", len(gray_blue_contour))
+
         if len(gray_blue_contour) == 1:
             blue_circle_contour = gray_blue_contour
             for c in blue_circle_contour:
                 M = cv2.moments(c)
                 blue_circle_center_x = int(M["m10"] / M["m00"])
                 blue_circle_center_y = int(M["m01"] / M["m00"])
-                print("blue_circle_center_x : ", blue_circle_center_x)
-                print("blue_circle_center_y : ", blue_circle_center_y)
+                # print("blue_circle_center_x : ", blue_circle_center_x)
+                # print("blue_circle_center_y : ", blue_circle_center_y)
 
         ''' get red point circle '''
         red_src_img = frame.copy()
         red_image = get_red_image(red_src_img)
-        cv2.imshow("Red Frame", red_image)
+        # cv2.imshow("Red Frame", red_image)
         gray_red_image = cv2.cvtColor(red_image, cv2.COLOR_BGR2GRAY)
         ret, gray_red_image = cv2.threshold(gray_red_image, 20, 255, cv2.THRESH_BINARY)
-        cv2.imshow("Red Gray  Frame", gray_red_image)
+        # cv2.imshow("Red Gray  Frame", gray_red_image)
 
         kernel_temp = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         gray_red_image = cv2.erode(gray_red_image, kernel_temp)
         gray_red_image = cv2.dilate(gray_red_image, kernel_temp)
         gray_red_contour, hierarchy = cv2.findContours(gray_red_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
         red_area_size_min = 0xffffff
-        print("len(gray_red_contour):", len(gray_red_contour))
+        # print("len(gray_red_contour):", len(gray_red_contour))
         for c in gray_red_contour:
             size_tmp = cv2.contourArea(c)
             if size_tmp < red_area_size_min:
@@ -273,44 +303,46 @@ if __name__ == '__main__':
                 M = cv2.moments(c)
                 red_center_x = int(M["m10"] / int(M["m00"]))
                 red_center_y = int(M["m01"] / int(M["m00"]))
-        print("red_center_x :", red_center_x)
-        print("red_center_y :", red_center_y)
+        # print("red_center_x :", red_center_x)
+        # print("red_center_y :", red_center_y)
 
         ''' 試算角度, 填入各area'''
         ''' 黑色區塊填入計分值 '''
         line1 = [(red_center_x, red_center_y), (blue_circle_center_x, blue_circle_center_y)]
+
         ''' 黑色區塊填入計分值 '''
         for black_area in black_area_list:
-            line2 = []
-            line2.append((red_center_x, red_center_y))
-            line2.append((black_area.center_x, black_area.center_y))
+            line2 = [(red_center_x, red_center_y), (black_area.center_x, black_area.center_y)]
             '''angle = get_angle((blue_circle_center_x, blue_circle_center_y),
                               (red_center_x, red_center_y),
                               (black_area.center_x, black_area.center_y))'''
             angle = get_angle_with_two_lines(line1, line2)
-            '''if angle < 340:
-                black_area.set_point(int(dart_points[int(angle/18) + 1]))
-            else:
-                black_area.set_point(int(dart_points[int(angle / 18)]))'''
+            black_area.set_angle(angle)
+
+            dist = get_distance((red_center_x, red_center_y), (black_area.center_x, black_area.center_y))
+            black_area.set_dist(dist)
+
             black_area.set_point(int(dart_points[int(angle / 18)]))
-            log.debug("black_area id: %d", black_area.id)
-            log.debug("angle : %f", angle)
+            # log.debug("black_area id: %d", black_area.id)
+            # log.debug("angle : %f", angle)
             '''log.debug("int angle/20 : %d", int(angle/20))
             log.debug("black_area point: %d", black_area.point)'''
-            cv2.putText(black_area_image, str(black_area.point), (black_area.center_x, black_area.center_y + 20),
+            cv2.putText(black_area_image,
+                        str(black_area.angle) + "/" + str(black_area.dist) + "/" + str(black_area.point),
+                        (black_area.center_x, black_area.center_y + 20),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 0, 255), 1, cv2.LINE_AA)
+
+        cv2.imshow("black_contour_image_point", black_area_image)
         ''' 白色區塊填入計分值 '''
         for white_area in white_area_list:
-            line2 = []
-            line2.append((red_center_x, red_center_y))
-            line2.append((white_area.center_x, white_area.center_y))
+            line2 = [(red_center_x, red_center_y), (white_area.center_x, white_area.center_y)]
 
             angle = get_angle_with_two_lines(line1, line2)
 
             white_area.set_point(int(dart_points[int(angle / 18)]))
-            log.debug("black_area id: %d", white_area.id)
-            log.debug("angle : %f", angle)
+            '''log.debug("black_area id: %d", white_area.id)
+            log.debug("angle : %f", angle)'''
 
             cv2.putText(white_area_image, str(white_area.point), (white_area.center_x, white_area.center_y + 20),
                         cv2.FONT_HERSHEY_SIMPLEX,
@@ -318,13 +350,29 @@ if __name__ == '__main__':
 
         cv2.imshow("white_contour_image_point", white_area_image)
 
-        ret = cv2_key_event()
-        if ret == -1:
-            print("out")
-            break
-        else:
-            # print("ret:", ret)
-            if ret == 99:
-                save_jpgs(frame, "ori_frame_")
+
+        ''' 紅色綠色區塊填入計分資料 '''
+        for red_green_area in double_triple_area_list:
+            line2 = [(red_center_x, red_center_y), (red_green_area.center_x, red_green_area.center_y)]
+            angle = get_angle_with_two_lines(line1, line2)
+            red_green_area.set_angle(angle)
+
+            dist = get_distance((red_center_x, red_center_y), (red_green_area.center_x, red_green_area.center_y))
+            if red_green_area.id == 2:
+                log.debug("red_center_x : %d, red_center_y : %d", red_center_x, red_center_y)
+                log.debug("red_green_area.center_x : %d, red_green_area.center_y : %d", red_green_area.center_x, red_green_area.center_y)
+                log.debug("dist : %d", dist)
+            red_green_area.set_dist(dist)
+            cv2.putText(double_triple_image,
+                        str(red_green_area.dist) + "/" + str(red_green_area.angle), # + "/" + str(red_green_area.point),
+                        (red_green_area.center_x, red_green_area.center_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1, cv2.LINE_AA)
+
+        cv2.imshow("red_green_contour_image", double_triple_image)
+
+        double_area_list = get_double_area_list(double_triple_area_list)
 
     cv2.destroyAllWindows()
+
+

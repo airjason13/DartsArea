@@ -54,10 +54,8 @@ def get_angle_with_two_lines(line1, line2):
     angle2 = math.atan2(dy2, dx2)
     angle2 = int(angle2 * 180/math.pi)
 
-
-
-    log.debug("angle1 : %d", angle1)
-    log.debug("angle2 : %d", angle2)
+    # log.debug("angle1 : %d", angle1)
+    # log.debug("angle2 : %d", angle2)
     if dx2 < 0:
         if angle1*angle2 >= 0:
             inside_angle = abs(angle1 - angle2)
@@ -74,15 +72,15 @@ def get_angle_with_two_lines(line1, line2):
             inside_angle = abs(angle1) + abs(angle2)
             inside_angle = 360 - inside_angle
 
-    log.debug("inside_angle : %d", inside_angle)
+    # log.debug("inside_angle : %d", inside_angle)
     return inside_angle
 
 
 def get_angle_with_two_lines_method1(line1, line2):
-    '''log.debug("line1[0][0] : %d", line1[0][0])
+    ''' log.debug("line1[0][0] : %d", line1[0][0])
     log.debug("line1[1][0] : %d", line1[1][0])
     log.debug("line2[0][0] : %d", line2[0][0])
-    log.debug("line2[1][0] : %d", line2[1][0])'''
+    log.debug("line2[1][0] : %d", line2[1][0]) '''
     dx1 = line1[0][0] - line1[1][0]
     dy1 = line1[0][1] - line1[1][1]
     dx2 = line2[0][0] - line2[1][0]
@@ -95,4 +93,15 @@ def get_angle_with_two_lines_method1(line1, line2):
     if 370 > angle > -370:
         angle = int(angle)
     return angle
+
+
+def get_distance(point1, point2):
+    dist = math.hypot(point2[0] - point1[0], point2[1] - point1[1])
+    return int(dist)
+
+
+def get_distance_depreciated(point1, point2):
+    dist = math.hypot(point2[0] - point1[0], point2[1] - point2[1])
+    return int(dist)
+
 
