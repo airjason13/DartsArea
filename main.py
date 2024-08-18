@@ -169,24 +169,48 @@ def get_red_green_area(src_img):
 
 
 def get_double_area_list(double_triple_area_list: []):
-    double_area_list = []
+    t_double_area_list = []
     tmp_double_area_list = double_triple_area_list.copy()
     for area in double_triple_area_list:
         for tmp_area in tmp_double_area_list:
             if tmp_area.id == area.id:
-                log.debug("id matched")
+                pass
+                # log.debug("id matched")
             else:
                 if 0 <= abs(area.angle - tmp_area.angle) <= 1:
-                    log.debug("area.id: %d", area.id)
-                    log.debug("tmp_area.id: %d", tmp_area.id)
-                    log.debug("area.angle: %d", area.angle)
-                    log.debug("tmp_area.angle: %d", tmp_area.angle)
+                    # log.debug("area.id: %d", area.id)
+                    # log.debug("tmp_area.id: %d", tmp_area.id)
+                    # log.debug("area.angle: %d", area.angle)
+                    # log.debug("tmp_area.angle: %d", tmp_area.angle)
                     if area.dist < tmp_area.dist:
-                        double_area_list.append(area)
+                        t_double_area_list.append(area)
 
-    log.debug("len(double_area_list) : %d", len(double_area_list))
-    for double_area in double_area_list:
-        log.debug("double_area.id: %d", double_area.id)
+    # log.ebug("len(t_double_area_list) : %d", len(t_double_area_list))
+    # for double_area in t_double_area_list:
+        # log.debug("double_area.id: %d", double_area.id)
+    return t_double_area_list
+
+def get_triple_area_list(double_triple_area_list: []):
+    t_triple_area_list = []
+    tmp_triple_area_list = double_triple_area_list.copy()
+    for area in double_triple_area_list:
+        for tmp_area in tmp_triple_area_list:
+            if tmp_area.id == area.id:
+                pass
+                # log.debug("id matched")
+            else:
+                if 0 <= abs(area.angle - tmp_area.angle) <= 1:
+                    # log.debug("area.id: %d", area.id)
+                    # log.debug("tmp_area.id: %d", tmp_area.id)
+                    # log.debug("area.angle: %d", area.angle)
+                    # log.debug("tmp_area.angle: %d", tmp_area.angle)
+                    if area.dist > tmp_area.dist:
+                        t_triple_area_list.append(area)
+
+    # log.debug("len(t_triple_area_list) : %d", len(t_triple_area_list))
+    # for triple_area in t_triple_area_list:
+    #    log.debug("double_area.id: %d", triple_area.id)
+    return t_triple_area_list
 
 
 if __name__ == '__main__':
@@ -323,10 +347,7 @@ if __name__ == '__main__':
             black_area.set_dist(dist)
 
             black_area.set_point(int(dart_points[int(angle / 18)]))
-            # log.debug("black_area id: %d", black_area.id)
-            # log.debug("angle : %f", angle)
-            '''log.debug("int angle/20 : %d", int(angle/20))
-            log.debug("black_area point: %d", black_area.point)'''
+
             cv2.putText(black_area_image,
                         str(black_area.angle) + "/" + str(black_area.dist) + "/" + str(black_area.point),
                         (black_area.center_x, black_area.center_y + 20),
@@ -337,12 +358,8 @@ if __name__ == '__main__':
         ''' 白色區塊填入計分值 '''
         for white_area in white_area_list:
             line2 = [(red_center_x, red_center_y), (white_area.center_x, white_area.center_y)]
-
             angle = get_angle_with_two_lines(line1, line2)
-
             white_area.set_point(int(dart_points[int(angle / 18)]))
-            '''log.debug("black_area id: %d", white_area.id)
-            log.debug("angle : %f", angle)'''
 
             cv2.putText(white_area_image, str(white_area.point), (white_area.center_x, white_area.center_y + 20),
                         cv2.FONT_HERSHEY_SIMPLEX,
@@ -358,10 +375,10 @@ if __name__ == '__main__':
             red_green_area.set_angle(angle)
 
             dist = get_distance((red_center_x, red_center_y), (red_green_area.center_x, red_green_area.center_y))
-            if red_green_area.id == 2:
-                log.debug("red_center_x : %d, red_center_y : %d", red_center_x, red_center_y)
-                log.debug("red_green_area.center_x : %d, red_green_area.center_y : %d", red_green_area.center_x, red_green_area.center_y)
-                log.debug("dist : %d", dist)
+            # if red_green_area.id == 2:
+            #    log.debug("red_center_x : %d, red_center_y : %d", red_center_x, red_center_y)
+            #    log.debug("red_green_area.center_x : %d, red_green_area.center_y : %d", red_green_area.center_x, red_green_area.center_y)
+            #    log.debug("dist : %d", dist)
             red_green_area.set_dist(dist)
             cv2.putText(double_triple_image,
                         str(red_green_area.dist) + "/" + str(red_green_area.angle), # + "/" + str(red_green_area.point),
@@ -371,8 +388,54 @@ if __name__ == '__main__':
 
         cv2.imshow("red_green_contour_image", double_triple_image)
 
+
+        ''' 獲取雙倍區 '''
         double_area_list = get_double_area_list(double_triple_area_list)
+        double_image = frame.copy()
+
+        for area in double_area_list:
+            cv2.drawContours(double_image, area.cnt, -1, (0, 255, 0), 2)
+            line2 = [(red_center_x, red_center_y), (area.center_x, area.center_y)]
+            angle = get_angle_with_two_lines(line1, line2)
+            area.set_point(int(dart_points[int(angle / 18)]))
+            cv2.putText(double_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(double_image,
+                        str(area.dist) + "/" + str(area.angle) + "/" + str(area.point),
+                        (area.center_x, area.center_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        cv2.imshow("double_image", double_image)
+
+        ''' 獲取三倍區 '''
+        triple_area_list = get_triple_area_list(double_triple_area_list)
+        triple_image = frame.copy()
+        for area in triple_area_list:
+            cv2.drawContours(triple_image, area.cnt, -1, (0, 255, 0), 2)
+            line2 = [(red_center_x, red_center_y), (area.center_x, area.center_y)]
+            angle = get_angle_with_two_lines(line1, line2)
+            area.set_point(int(dart_points[int(angle / 18)]))
+            cv2.putText(triple_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(triple_image,
+                        str(area.dist) + "/" + str(area.angle) + "/" + str(area.point),
+                        (area.center_x, area.center_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        cv2.imshow("triple_image", triple_image)
+
+        ''' 測試 點在那一個區塊內 '''
+        point_in_contour_result = 0
+        point = (540, 510)
+        for area in triple_area_list:
+            point_in_contour_result = cv2.pointPolygonTest(area.cnt, point, False)
+            # log.debug("point_in_contour_result :%d", point_in_contour_result)
+            if point_in_contour_result > 0:
+                log.debug("area id : %d", area.id)
 
     cv2.destroyAllWindows()
+
 
 

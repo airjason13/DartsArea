@@ -22,7 +22,7 @@ class VArea:
 
     def set_dist(self, dist):
         self.dist = dist
-        log.debug("area id: %d, dist: %d", self.id, self.dist)
+        # log.debug("area id: %d, dist: %d", self.id, self.dist)
 
 
 
