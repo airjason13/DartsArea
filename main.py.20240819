@@ -155,10 +155,10 @@ def get_red_green_area(src_img):
     return area_list
 
 
-def get_double_area_list(s_double_triple_area_list: []):
+def get_double_area_list(double_triple_area_list: []):
     t_double_area_list = []
-    tmp_double_area_list = s_double_triple_area_list.copy()
-    for area in s_double_triple_area_list:
+    tmp_double_area_list = double_triple_area_list.copy()
+    for area in double_triple_area_list:
         for tmp_area in tmp_double_area_list:
             if tmp_area.id == area.id:
                 pass
@@ -196,44 +196,83 @@ def get_triple_area_list(double_triple_area_list: []):
     return t_triple_area_list
 
 
-class DartAreas:
-    NUM_OF_ANGLE_SECTION = 18
-    def __init__(self, ori_image: np.ndarray):
-        self.src_image = ori_image
-        self.double_triple_image = self.src_image.copy()
-        self.double_triple_area_list = get_red_green_area(self.double_triple_image)
+if __name__ == '__main__':
+    log.debug("Start ")
+    double_triple_area_list = []
+    if TEST_WITH_JPG is True:
+        pass
+    else:
+        if 'aarch64' in platform.machine(): # RPI
+            cap = cv2.VideoCapture(0)
+        else:   # x86
+            cap = cv2.VideoCapture(2)
 
-        self.black_area_image = self.src_image.copy()
-        self.black_area_list = get_black_area_list(self.black_area_image)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-        self.white_area_image = self.src_image.copy()
-        self.white_area_list = get_white_area_list(self.white_area_image)
+    while True:
+        if TEST_WITH_JPG is True:
+            image = cv2.imread("ori_frame_20240810_101810.jpg")
+        else:
+            ret, image = cap.read()
+            if ret is not True:
+                print("no frame")
+                break
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("Ori Frame", image)
 
-        self.blue_circle_center_x, self.blue_circle_center_y = self.get_blue_point()
-        self.red_center_x, self.red_center_y = self.get_red_bulleye()
+        ret = cv2_key_event()
+        if ret == -1:
+            print("out")
+            break
+        else:
+            # print("ret:", ret)
+            if ret == 99:
+                save_jpgs(image, "ori_frame_")
 
-        self.set_black_area_data()
-        self.set_white_area_data()
+        frame = image[50:715, 275:1025]
 
-        self.set_double_triple_area_default_data()
+        double_triple_image = frame.copy()
+        double_triple_area_list = get_red_green_area(double_triple_image)
+        for area in double_triple_area_list:
+            cv2.drawContours(double_triple_image, area.cnt, -1, (0, 255, 0), 2)
+            cv2.putText(double_triple_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            # cv2.putText(double_triple_image, str(area.area_size), (area.center_x, area.center_y + 20), cv2.FONT_HERSHEY_SIMPLEX,
+            #             0.5, (0, 255, 255), 1, cv2.LINE_AA)
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("red_green_contour_image", double_triple_image)
 
-        ''' 獲取雙倍區 '''
-        self.double_area_list = get_double_area_list(self.double_triple_area_list)
-        self.double_image_with_data = self.src_image.copy()
-        self.set_double_area_data()
+        black_area_image = frame.copy()
+        black_area_list = get_black_area_list(black_area_image)
+        for area in black_area_list:
+            cv2.drawContours(black_area_image, area.cnt, -1, (0, 255, 0), 2)
+            cv2.putText(black_area_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            # cv2.putText(black_area_image, str(area.area_size), (area.center_x, area.center_y + 20),
+            # cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
-        ''' 獲取三倍區 '''
-        self.triple_area_list = get_triple_area_list(self.double_triple_area_list)
-        self.triple_image_with_data = frame.copy()
-        self.set_triple_area_data()
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("black_contour_image", black_area_image)
 
+        white_area_image = frame.copy()
+        white_area_list = get_white_area_list(white_area_image)
+        for area in white_area_list:
+            cv2.drawContours(white_area_image, area.cnt, -1, (0, 255, 0), 2)
+            cv2.putText(white_area_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            # cv2.putText(white_area_image, str(area.area_size), (area.center_x, area.center_y + 20),
+            # cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
-    def get_blue_point(self) -> (int, int) :
-        """ get blue circle point for calculate angle """
-        blue_src_img = self.src_image.copy()
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("white_contour_image", white_area_image)
+
+        ''' get blue circle point for calculate angle '''
+        blue_src_img = frame.copy()
         blue_image = get_blue_image(blue_src_img)
+
         gray_blue_image = cv2.cvtColor(blue_image, cv2.COLOR_BGR2GRAY)
-        i_ret, gray_blue_image = cv2.threshold(gray_blue_image, 20, 255, cv2.THRESH_BINARY)
+        ret, gray_blue_image = cv2.threshold(gray_blue_image, 20, 255, cv2.THRESH_BINARY)
 
         # erode & dilage, performance is better
         kernel_temp = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
@@ -248,11 +287,8 @@ class DartAreas:
                 blue_circle_center_x = int(M["m10"] / M["m00"])
                 blue_circle_center_y = int(M["m01"] / M["m00"])
 
-        return (blue_circle_center_x, blue_circle_center_y)
-
-    def get_red_bulleye(self) -> (int, int):
-        """ get red point circle """
-        red_src_img = self.src_image.copy()
+        ''' get red point circle '''
+        red_src_img = frame.copy()
         red_image = get_red_image(red_src_img)
 
         gray_red_image = cv2.cvtColor(red_image, cv2.COLOR_BGR2GRAY)
@@ -272,155 +308,114 @@ class DartAreas:
                 red_center_x = int(M["m10"] / int(M["m00"]))
                 red_center_y = int(M["m01"] / int(M["m00"]))
 
-        return (red_center_x, red_center_y)
+        ''' 試算角度, 填入各area'''
+        ''' 黑色區塊填入計分值 '''
+        line1 = [(red_center_x, red_center_y), (blue_circle_center_x, blue_circle_center_y)]
 
-
-    def get_double_triple_image_with_data(self):
-        tmp_image = self.double_triple_image.copy()
-        for area in self.double_triple_area_list:
-            cv2.drawContours(tmp_image, area.cnt, -1, (0, 255, 0), 2)
-            cv2.putText(tmp_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
-
-        return tmp_image
-
-    def set_black_area_data(self):
-        """ 試算角度, 填入各area"""
-        ' 黑色區塊填入計分值 '
-        line1 = [(self.red_center_x, self.red_center_y), (self.blue_circle_center_x, self.blue_circle_center_y)]
-
-        ' 黑色區塊填入計分值 '
-        for black_area in self.black_area_list:
-            line2 = [(self.red_center_x, self.red_center_y), (black_area.center_x, black_area.center_y)]
+        ''' 黑色區塊填入計分值 '''
+        for black_area in black_area_list:
+            line2 = [(red_center_x, red_center_y), (black_area.center_x, black_area.center_y)]
+            '''angle = get_angle((blue_circle_center_x, blue_circle_center_y),
+                              (red_center_x, red_center_y),
+                              (black_area.center_x, black_area.center_y))'''
             angle = get_angle_with_two_lines(line1, line2)
             black_area.set_angle(angle)
-            dist = get_distance((self.red_center_x, self.red_center_y),
-                                (black_area.center_x, black_area.center_y))
+
+            dist = get_distance((red_center_x, red_center_y), (black_area.center_x, black_area.center_y))
             black_area.set_dist(dist)
-            black_area.set_point(int(dart_points[int(angle / self.NUM_OF_ANGLE_SECTION)]))
 
-    def set_white_area_data(self):
-        line1 = [(self.red_center_x, self.red_center_y), (self.blue_circle_center_x, self.blue_circle_center_y)]
-        for white_area in self.white_area_list:
-            line2 = [(self.red_center_x, self.red_center_y), (white_area.center_x, white_area.center_y)]
+            black_area.set_point(int(dart_points[int(angle / 18)]))
+
+            cv2.putText(black_area_image,
+                        str(black_area.angle) + "/" + str(black_area.dist) + "/" + str(black_area.point),
+                        (black_area.center_x, black_area.center_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1, cv2.LINE_AA)
+
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("black_contour_image_point", black_area_image)
+
+        ''' 白色區塊填入計分值 '''
+        for white_area in white_area_list:
+            line2 = [(red_center_x, red_center_y), (white_area.center_x, white_area.center_y)]
             angle = get_angle_with_two_lines(line1, line2)
-            white_area.set_angle(angle)
-            dist = get_distance((self.red_center_x, self.red_center_y),
-                                (white_area.center_x, white_area.center_y))
-            white_area.set_dist(dist)
-            white_area.set_point(int(dart_points[int(angle / self.NUM_OF_ANGLE_SECTION)]))
+            white_area.set_point(int(dart_points[int(angle / 18)]))
+
+            cv2.putText(white_area_image, str(white_area.point), (white_area.center_x, white_area.center_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("white_contour_image_point", white_area_image)
 
 
-    def set_double_triple_area_default_data(self):
-        line1 = [(self.red_center_x, self.red_center_y), (self.blue_circle_center_x, self.blue_circle_center_y)]
         ''' 紅色綠色區塊填入計分資料 '''
-        for red_green_area in self.double_triple_area_list:
-            line2 = [(self.red_center_x, self.red_center_y), (red_green_area.center_x, red_green_area.center_y)]
+        for red_green_area in double_triple_area_list:
+            line2 = [(red_center_x, red_center_y), (red_green_area.center_x, red_green_area.center_y)]
             angle = get_angle_with_two_lines(line1, line2)
             red_green_area.set_angle(angle)
-            dist = get_distance((self.red_center_x, self.red_center_y),
-                                (red_green_area.center_x, red_green_area.center_y))
+
+            dist = get_distance((red_center_x, red_center_y), (red_green_area.center_x, red_green_area.center_y))
+            # if red_green_area.id == 2:
+            #    log.debug("red_center_x : %d, red_center_y : %d", red_center_x, red_center_y)
+            #    log.debug("red_green_area.center_x : %d, red_green_area.center_y : %d", red_green_area.center_x, red_green_area.center_y)
+            #    log.debug("dist : %d", dist)
             red_green_area.set_dist(dist)
+            cv2.putText(double_triple_image,
+                        str(red_green_area.dist) + "/" + str(red_green_area.angle), # + "/" + str(red_green_area.point),
+                        (red_green_area.center_x, red_green_area.center_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("red_green_contour_image", double_triple_image)
 
-    def set_double_area_data(self):
-        line1 = [(self.red_center_x, self.red_center_y), (self.blue_circle_center_x, self.blue_circle_center_y)]
-        for area in self.double_area_list:
-            cv2.drawContours(self.double_image_with_data, area.cnt, -1, (0, 255, 0), 2)
-            line2 = [(self.red_center_x, self.red_center_y), (area.center_x, area.center_y)]
+
+        ''' 獲取雙倍區 '''
+        double_area_list = get_double_area_list(double_triple_area_list)
+        double_image = frame.copy()
+
+        for area in double_area_list:
+            cv2.drawContours(double_image, area.cnt, -1, (0, 255, 0), 2)
+            line2 = [(red_center_x, red_center_y), (area.center_x, area.center_y)]
             angle = get_angle_with_two_lines(line1, line2)
-
-            area.set_point(2 * int(dart_points[int(angle / self.NUM_OF_ANGLE_SECTION)]))
-            cv2.putText(self.double_image_with_data, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
+            area.set_point(2 * int(dart_points[int(angle / 18)]))
+            cv2.putText(double_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(self.double_image_with_data,
+            cv2.putText(double_image,
                         str(area.dist) + "/" + str(area.angle) + "/" + str(area.point),
                         (area.center_x, area.center_y + 20),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("double_image", double_image)
 
-
-    def set_triple_area_data(self):
-        line1 = [(self.red_center_x, self.red_center_y), (self.blue_circle_center_x, self.blue_circle_center_y)]
-        for area in self.triple_area_list:
-            line2 = [(self.red_center_x, self.red_center_y), (area.center_x, area.center_y)]
+        ''' 獲取三倍區 '''
+        triple_area_list = get_triple_area_list(double_triple_area_list)
+        triple_image = frame.copy()
+        for area in triple_area_list:
+            cv2.drawContours(triple_image, area.cnt, -1, (0, 255, 0), 2)
+            line2 = [(red_center_x, red_center_y), (area.center_x, area.center_y)]
             angle = get_angle_with_two_lines(line1, line2)
-            area.set_point( 3 * int(dart_points[int(angle / self.NUM_OF_ANGLE_SECTION)]))
-            cv2.drawContours(self.triple_image_with_data, area.cnt, -1, (0, 255, 0), 2)
-            cv2.putText(self.triple_image_with_data, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
+            area.set_point( 3 * int(dart_points[int(angle / 18)]))
+            cv2.putText(triple_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 255, 255), 1, cv2.LINE_AA)
-            cv2.putText(self.triple_image_with_data,
+            cv2.putText(triple_image,
                         str(area.dist) + "/" + str(area.angle) + "/" + str(area.point),
                         (area.center_x, area.center_y + 20),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5, (0, 0, 255), 1, cv2.LINE_AA)
-
-
-    def get_double_area_image_with_data(self):
-        return self.double_image_with_data
-
-    def get_triple_area_image_with_data(self):
-        return self.triple_image_with_data
-
-    def get_score_with_point(self, x, y):
-        point = (x, y)
-        ''' 測試 點在那一個區塊內 '''
-        # point_in_contour_result = 0
-        for area in self.triple_area_list:
-            point_in_contour_result = cv2.pointPolygonTest(area.cnt, point, False)
-            # log.debug("point_in_contour_result :%d", point_in_contour_result)
-            if point_in_contour_result > 0:
-                log.debug("area id : %d", area.id)
-                return area.point
-
-        for area in self.double_area_list:
-            point_in_contour_result = cv2.pointPolygonTest(area.cnt, point, False)
-            # log.debug("point_in_contour_result :%d", point_in_contour_result)
-            if point_in_contour_result > 0:
-                log.debug("area id : %d", area.id)
-                return area.point
-
-        for area in self.black_area_list:
-            point_in_contour_result = cv2.pointPolygonTest(area.cnt, point, False)
-            # log.debug("point_in_contour_result :%d", point_in_contour_result)
-            if point_in_contour_result > 0:
-                log.debug("area id : %d", area.id)
-                return area.point
-
-        for area in self.white_area_list:
-            point_in_contour_result = cv2.pointPolygonTest(area.cnt, point, False)
-            # log.debug("point_in_contour_result :%d", point_in_contour_result)
-            if point_in_contour_result > 0:
-                log.debug("area id : %d", area.id)
-                return area.point
-
-        return 0
-
-
-
-if __name__ == '__main__':
-    image = cv2.imread("ori_frame_20240810_101810.jpg")
-    frame = image[50:715, 275:1025]
-    cv2.imshow("SRC_IMAGE", frame)
-    dart_area = DartAreas(frame)
-    cv2.imshow("Double Triple Areas Image", dart_area.get_double_triple_image_with_data())
-    cv2.imshow("Double Areas Image", dart_area.get_double_area_image_with_data())
-    cv2.imshow("Triple Areas Image", dart_area.get_triple_area_image_with_data())
-    while True:
-        ret = cv2_key_event()
-        if ret == -1:
-            print("out")
-            break
-        else:
-            # print("ret:", ret)
-            if ret == 99:
-                save_jpgs(image, "ori_frame_")
+        if TEST_SHOW_CV2_WINDOW is True:
+            cv2.imshow("triple_image", triple_image)
 
         ''' 測試 點在那一個區塊內 '''
-        score = dart_area.get_score_with_point(484, 212)
-        log.debug("score : %d", score)
+        point_in_contour_result = 0
+        point = (540, 510)
+        for area in triple_area_list:
+            point_in_contour_result = cv2.pointPolygonTest(area.cnt, point, False)
+            # log.debug("point_in_contour_result :%d", point_in_contour_result)
+            if point_in_contour_result > 0:
+                log.debug("area id : %d", area.id)
 
     cv2.destroyAllWindows()
 

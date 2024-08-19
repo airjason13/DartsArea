@@ -12,6 +12,7 @@ class VArea:
         self.area_size = cv2.contourArea(self.cnt)
         self.point = 0
         self.angle = 0
+        # self.dist = 0
         self.dist_from_bulleye = 0
 
     def set_point(self, point):
