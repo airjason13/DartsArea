@@ -101,8 +101,15 @@ def get_black_area_list(src_img):
 
 def get_red_green_area(src_img):
     area_list = []
+
+    img_copy = src_img.copy()
+    # erode & dilage, performance is better
+    kernel_temp = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
+    img_copy = cv2.erode(img_copy, kernel_temp)
+    img_copy = cv2.dilate(img_copy, kernel_temp)
+
     ''' 檢測紅色綠色區塊 '''
-    red_green_image = get_green_red_image(src_img)
+    red_green_image = get_green_red_image(img_copy)
 
     ''' 找出紅色綠色contour'''
     frame_sample = red_green_image.copy()
@@ -136,7 +143,7 @@ def get_red_green_area(src_img):
     new_contours = []
     for cnt in red_green_cnts:
         area = cv2.contourArea(cnt)
-        if area > 250:
+        if area > 170:
             new_contours.append(cnt)
 
     contours = new_contours
@@ -156,22 +163,31 @@ def get_red_green_area(src_img):
 
 
 def get_double_area_list(s_double_triple_area_list: []):
+    log.debug("get_double_area_list start")
     t_double_area_list = []
     tmp_double_area_list = s_double_triple_area_list.copy()
     for area in s_double_triple_area_list:
         for tmp_area in tmp_double_area_list:
             if tmp_area.id == area.id:
-                pass
+                continue
                 # log.debug("id matched")
             else:
-                if 0 <= abs(area.angle - tmp_area.angle) <= 1:
-                    # log.debug("area.id: %d", area.id)
-                    # log.debug("tmp_area.id: %d", tmp_area.id)
-                    # log.debug("area.angle: %d", area.angle)
-                    # log.debug("tmp_area.angle: %d", tmp_area.angle)
+                '''if area.id == 27 :
+                    log.debug("area.id: %d", area.id)
+                    log.debug("tmp_area.id: %d", tmp_area.id)
+                    log.debug("area.angle: %d", area.angle)
+                    log.debug("tmp_area.angle: %d", tmp_area.angle)
+                    log.debug("area.dist: %d", area.dist)
+                    log.debug("tmp_area.dist: %d", tmp_area.dist)
+                    log.debug("abs(area.angle - tmp_area.angle): %d", abs(area.angle - tmp_area.angle))'''
+                if 0 <= abs(area.angle - tmp_area.angle) <= 2:
                     if area.dist < tmp_area.dist:
+                        log.debug("area.id : %d is appand to list", area.id)
+                        log.debug("tmp_area.id : %d", tmp_area.id)
                         t_double_area_list.append(area)
-
+    log.debug("get_double_area_list end")
+    '''for double_area in t_double_area_list:
+        log.debug("double_area.id :%d", double_area.id)'''
 
     return t_double_area_list
 
@@ -184,17 +200,25 @@ def get_triple_area_list(double_triple_area_list: []):
                 pass
                 # log.debug("id matched")
             else:
-                if 0 <= abs(area.angle - tmp_area.angle) <= 1:
-                    # log.debug("area.id: %d", area.id)
-                    # log.debug("tmp_area.id: %d", tmp_area.id)
-                    # log.debug("area.angle: %d", area.angle)
-                    # log.debug("tmp_area.angle: %d", tmp_area.angle)
+                if area.id == 34 and tmp_area.id == 27:
+                    log.debug("area.id: %d", area.id)
+                    log.debug("tmp_area.id: %d", tmp_area.id)
+                    log.debug("area.angle: %d", area.angle)
+                    log.debug("tmp_area.angle: %d", tmp_area.angle)
+                    log.debug("area.dist: %d", area.dist)
+                    log.debug("tmp_area.dist: %d", tmp_area.dist)
+                if 0 <= abs(area.angle - tmp_area.angle) <= 2:
                     if area.dist > tmp_area.dist:
                         t_triple_area_list.append(area)
 
 
     return t_triple_area_list
 
+def show_score(score: int):
+    image1 = np.zeros((640, 640, 3), dtype='uint8')
+    cv2.putText(image1, str(score), (0, 320), cv2.FONT_ITALIC, 10,
+                (255, 255, 255), 5, cv2.LINE_AA )
+    cv2.imshow("Score", image1)
 
 class DartAreas:
     NUM_OF_ANGLE_SECTION = 18
@@ -205,9 +229,18 @@ class DartAreas:
 
         self.black_area_image = self.src_image.copy()
         self.black_area_list = get_black_area_list(self.black_area_image)
+        log.debug("len(self.black_area_list): %d", len(self.black_area_list))
+        for area in self.black_area_list:
+            cv2.drawContours(self.black_area_image, area.cnt, -1, (0, 255, 0), 2)
+            cv2.putText(self.black_area_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
+
+        cv2.imshow("black_area_image", self.black_area_image)
 
         self.white_area_image = self.src_image.copy()
         self.white_area_list = get_white_area_list(self.white_area_image)
+        log.debug("len(self.white_area_list): %d", len(self.white_area_list))
 
         self.blue_circle_center_x, self.blue_circle_center_y = self.get_blue_point()
         self.red_center_x, self.red_center_y = self.get_red_bulleye()
@@ -281,9 +314,18 @@ class DartAreas:
             cv2.drawContours(tmp_image, area.cnt, -1, (0, 255, 0), 2)
             cv2.putText(tmp_image, str(area.id) + "/" + str(area.area_size), (area.center_x, area.center_y),
                         cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 255, 255), 1, cv2.LINE_AA)
-
+                        0.3, (0, 255, 255), 1, cv2.LINE_AA)
+            # cv2.putText(tmp_image, str(area.id) + "/" + str(area.area_size),
+            #            (area.center_x, area.center_y),
+            #             cv2.FONT_HERSHEY_SIMPLEX,
+            #           0.5, (0, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(tmp_image,
+                        str(area.dist) + "/" + str(area.angle) + "/" + str(area.point),
+                        (area.center_x, area.center_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.3, (0, 0, 255), 1, cv2.LINE_AA)
         return tmp_image
+
 
     def set_black_area_data(self):
         """ 試算角度, 填入各area"""
@@ -401,8 +443,40 @@ class DartAreas:
 
 
 if __name__ == '__main__':
-    image = cv2.imread("ori_frame_20240810_101810.jpg")
-    frame = image[50:715, 275:1025]
+    cap = cv2.VideoCapture(2)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+
+    # 建立 VideoWriter 物件，輸出影片至 output.avi
+    # FPS 值為 20.0，解析度為 640x360
+    out = cv2.VideoWriter('output_test.avi', fourcc, 20.0, (1280, 720))
+    while True:
+        ret, image = cap.read()
+        if ret is not True:
+            print("no image")
+            break
+        cv2.imshow("Ori Image", image)
+        out.write(image)
+        ret = cv2_key_event()
+        if ret == -1:
+            print("out")
+            break
+        else:
+            # print("ret:", ret)
+            if ret == 99:
+                save_jpgs(image, "ori_frame_")
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
+
+""" Test with JPG """
+if __name__ == '__main__jpg__':
+    image = cv2.imread("ori_frame_20240821_074058.jpg")
+    cv2.imshow("ORI_IMAGE", image)
+    frame = image[20:675, 195:915]
     cv2.imshow("SRC_IMAGE", frame)
     dart_area = DartAreas(frame)
     cv2.imshow("Double Triple Areas Image", dart_area.get_double_triple_image_with_data())
@@ -421,6 +495,39 @@ if __name__ == '__main__':
         ''' 測試 點在那一個區塊內 '''
         score = dart_area.get_score_with_point(484, 212)
         log.debug("score : %d", score)
+        show_score(score)
+
+    cv2.destroyAllWindows()
+
+
+""" Test with Video """
+if __name__ == '__main__video':
+    cap = cv2.VideoCapture("output_test.avi")
+    log.debug("cap.isOpened() : %d", cap.isOpened())
+    while cap.isOpened() is True:
+        iret, image = cap.read()
+        if iret is not True:
+            continue
+        cv2.imshow("ORI_IMAGE", image)
+        frame = image[20:675, 195:915]
+        cv2.imshow("SRC_IMAGE", frame)
+        dart_area = DartAreas(frame)
+        cv2.imshow("Double Triple Areas Image", dart_area.get_double_triple_image_with_data())
+        cv2.imshow("Double Areas Image", dart_area.get_double_area_image_with_data())
+        cv2.imshow("Triple Areas Image", dart_area.get_triple_area_image_with_data())
+
+        ret = cv2_key_event()
+        if ret == -1:
+            print("out")
+            break
+        else:
+            # print("ret:", ret)
+            if ret == 99:
+                save_jpgs(image, "ori_frame_")
+
+        ''' 測試 點在那一個區塊內 '''
+        # score = dart_area.get_score_with_point(484, 212)
+        # log.debug("score : %d", score)
 
     cv2.destroyAllWindows()
 
